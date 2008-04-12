@@ -1,0 +1,41 @@
+MemcacheQ is a memcachedb variant that provides a simple message quque service.
+
+Getting Started
+===============
+
+Commands:
+---------
+
+Only two commands are used to operate the quque:
+
+ * append a message to the tail of quque
+
+   set q 0 0 <message_len>\r\n
+   <put your message body here>\r\n
+   STORED\r\n
+
+ * pop a message from the head of quque
+
+   get q\r\n
+   VALUE q 0 <message_len>\r\n
+   <your message body will go here>\r\n
+   END\r\n
+
+Examples:
+---------
+
+Assuming you are using PHP memcache,
+
+  <?php
+  /* connect to memcached server */
+  $memcache_obj = memcache_connect('memcacheq_host', 21201);
+
+  /* append a message to quque */
+  memcache_set($memcache_obj, 'q', 'message body here', 0, 0);
+
+  /* pop a message from quque */
+  memcache_get($memcache_obj, 'q');
+
+  memcache_close($memcache_obj);
+  ?>
+

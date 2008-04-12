@@ -1,0 +1,55 @@
+Dependencies
+============
+Before deploying MemcacheQ, make sure that following packages installed:
+
+Berkeley DB 4.6 or later
+-------------------------
+http://www.oracle.com/database/berkeley-db/db/index.html
+
+How to install BerkekeyDB:
+
+$tar xvzf db-4.6.21.tar.gz
+$cd db-4.6.21/
+$cd build_unix/
+$../dist/configure
+$make
+$sudo make install
+
+
+libevent 1.3e or later
+-------------------------
+http://monkey.org/~provos/libevent/
+
+How to install libevent:
+
+$tar xvzf libevent-1.3e.tar.gz
+$cd libevent-1.3e
+$./configure
+$make
+$sudo make install
+
+Load .so file by add two line in /etc/ld.so.conf:
+
+  /usr/local/lib
+  /usr/local/BerkeleyDB.4.6/lib
+
+Then, run 'ldconfig'.
+
+Installation
+============
+$tar xvzf memcacheq-X.Y.Z.tar.gz
+$cd memcacheq-X.Y.Z
+$./configure
+$make
+$sudo make install
+
+Start the daemon
+================
+
+use "-h" option to get started.
+
+Examples:
+
+  memcacheq -p21201 -d -r -u root -H ./env -N
+
+Have fun :)

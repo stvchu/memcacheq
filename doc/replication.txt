@@ -1,0 +1,99 @@
+Memcachedb replication feature is based on Berkeley DB's replication api and 
+allow you to do a single writing and multiple reading to achieve your HA.
+
+Following private commands is dedicated to replication:
+
+rep_ismaster  -- for two sites replication, and know if it is a master
+
+Command format:
+
+rep_ismaster\r\n
+
+The response line to this command can be one of:
+
+- "REP_TRUE\r\n" to indicate that the deamon is a master.
+- "REP_FALSE\r\n" to indicate that the the daemon is not a master.
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+- "REP_UNKNOWN\r\n" to indicate that it can not be determinated.
+
+rep_whoismaster -- for two or more sites replication to know who is master
+
+Command format:
+
+rep_whoismaster\r\n
+
+The response line to this command can be one of:
+
+- "<IP>:<PORT>\r\n" to indicate a master's replication host and port.
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+- "REP_UNKNOWN\r\n" to indicate that it can not be determinated.
+
+rep_get_priority -- returns the database environment priority.
+
+Command format:
+
+rep_get_priority\r\n
+
+The response line to this command can be one of:
+
+- "<NUM>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+rep_set_priority -- specifies the database environment's priority in replication group elections. The priority must be a positive integer, or 0 if this environment cannot be a replication group master.
+
+Command format:
+
+rep_set_priority <NUM>\r\n
+
+The response line to this command can be one of:
+
+- "<NUM>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+rep_set_ack_policy -- specifies ack policy of replication. The <NUM> must be a positive integer, and be one of following mapping table.
+
+rep_set_ack_policy <NUM>\r\n
+
+The response line to this command can be one of:
+
+- "<NUM>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+Mapping Table:
+DB_REPMGR_ACKS_ALL              1
+DB_REPMGR_ACKS_ALL_PEERS        2
+DB_REPMGR_ACKS_NONE             3
+DB_REPMGR_ACKS_ONE              4
+DB_REPMGR_ACKS_ONE_PEER         5
+DB_REPMGR_ACKS_QUORUM           6
+
+rep_set_ack_timeout -- specifies timeout of waiting a ack. The <NUM> must be a positive integer, and with a max of u_int32_t.
+
+rep_set_ack_timeout <NUM>\r\n
+
+The response line to this command can be one of:
+
+- "<NUM>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+rep_set_bulk -- The replication master sends groups of records to the clients in a single network transfer if on. The <NUM> must be 0 or 1, if <NUM> is 0, bulk transfer is off, otherwise on.
+
+rep_set_bulk <NUM>\r\n
+
+The response line to this command can be one of:
+
+- "<NUM>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+rep_set_request -- sets the minimum and maximum number of missing log records that a client waits before requesting retransmission.
+
+rep_set_request <MIN> <MAX>\r\n
+
+The response line to this command can be one of:
+
+- "<MIN>/<MAX>\r\n"
+- "REP_DISABLE\r\n" to indicate that replication is disabled.
+
+More info about replication, please see "Getting Started with Replication" in 
+Berkeley DB's docs. For simplely getting started, see INSTALL file in the distribution.
+

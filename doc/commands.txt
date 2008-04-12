@@ -1,0 +1,18 @@
+Supported memcache commands
+===========================
+
+  * get(also mutiple get)
+  * set
+  * stats(malloc, maps) 
+
+Private commands
+=================
+
+  * db_checkpoint
+  * db_archive
+  * rep_ismaster
+  * rep_whoismaster
+  * rep_set_priority
+  * rep_set_ack_policy
+  * rep_set_ack_timeout
+  * stats(bdb, rep) 
