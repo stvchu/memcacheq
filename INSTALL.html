@@ -334,17 +334,22 @@ $sudo make install
 <pre class="literal-block">
 $tar xvzf memcacheq-0.1.x.tar.gz
 $cd memcacheq-0.1.x
-$./configure
+$./configure --enable-threads
 $make
 $sudo make install
 </pre>
 </div>
 <div class="section" id="start-the-daemon">
 <h1>Start the daemon</h1>
+<p>For example:</p>
 <pre class="literal-block">
 memcacheq -d -r -H /data1/memcacheq -N -v -L 1024 -B 1024 &gt; /data1/mq_error.log 2&gt;&amp;1
 </pre>
-<p>use &quot;-h&quot; option to get started.</p>
+<p>Notice: Because MemcacheQ is using fixed-length storage, so you should use '-B' option to specify the max length of your message. Default is 1024 bytes. Any message that shorter than the length you specified will be padded with '0x20', the space character. A message includes following bytes:</p>
+<pre class="literal-block">
+&lt;your queue name bytes&gt; + &lt;message metadata(9 ~ 20+ bytes)&gt; + &lt;your message body bytes&gt;
+</pre>
+<p>use &quot;-h&quot; option to see more configures.</p>
 <p>Have fun :)</p>
 </div>
 </div>

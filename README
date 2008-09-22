@@ -4,26 +4,24 @@ MemcacheQ - Simple Queue Service over Memcache
 
 Features
 =========
-* High performance
-* Strictly FIFO
-* Multiple queue supported
-* Memcache protocol compatible
-* Simple and easy to use
-
-Benchmark
-==========
-
+* damn simple
+* very fast
+* multiple queue
+* concurrent well
+* memcache protocol compatible
 
 Getting Started
 ===============
 
 Download
 ---------
-See <http://code.google.com/p/memcacheq/downloads/list>
+See: <http://code.google.com/p/memcacheq/downloads/list>
 
 Installation
 -------------
-See <http://memcachedb.org/memcacheq/INSTALL.html>
+See: <http://memcachedb.org/memcacheq/INSTALL.html>
+
+Please take a look at 'ChangLog' file in the distribution, see what's new.
 
 Commands
 ---------
@@ -32,16 +30,16 @@ Only two commands are used to operate the queue:
 
 **Append a message to the tail of queue**::
 
-   set <queue name> 0 0 <message_len>\r\n
+   set <queue name> <flags> 0 <message_len>\r\n
    <put your message body here>\r\n
    STORED\r\n
 
-**Note:** MQ will create a new queue automatically if your queue is not existed. The original 'flags' and 'expire time' field is ignored by server(here just padded with 0).
+**Note:** MQ will create a new queue automatically if your queue is not existed. The original 'expire time' field is ignored by server.
 
-**Pop a message from the head of queue**::
+**Consume a message from the head of queue**::
 
    get <queue name>\r\n
-   VALUE <queue name> 0 <message_len>\r\n
+   VALUE <queue name> <flags> <message_len>\r\n
    <your message body will come here>\r\n
    END\r\n
 
@@ -58,7 +56,7 @@ Assuming you are using PHP memcache<http://www.php.net/memcache>::
   /* append a message to queue */
   memcache_set($memcache_obj, 'demoqueue1', 'message body here', 0, 0);
   
-  /* pop a message from 'demoqueue1' */
+  /* consume a message from 'demoqueue1' */
   memcache_get($memcache_obj, 'demoqueue1');
 
   memcache_close($memcache_obj);
@@ -76,6 +74,56 @@ In Berkeley DB, as the official document refers,
 
 So we have a limit on the message body size with a max of a bit less than *64K*.
 
+Other tips
+===========
+use 'stats queue' to see your current queues::
 
+  $ telnet 127.0.0.1 22201
+  Trying 127.0.0.1...
+  Connected to localhost.
+  Escape character is '^]'.
+  stats queue
+  STAT test1
+  STAT test2
+  STAT test3
+  STAT test4
+  END
+  
+delete a queue::
 
+  $ telnet 127.0.0.1 22201
+  Trying 127.0.0.1...
+  Connected to localhost.
+  Escape character is '^]'.
+  delete test1
+  DELETED
+  
 
+'db_stat' a queue to see how many records now in::
+
+  $ cd <your queue dir>
+  $ /usr/local/BerkeleyDB.4.7/bin/db_stat -d test1 
+  Mon Sep 22 20:25:56 2008	Local time
+  42253   Queue magic number
+  4       Queue version number
+  1024    Fixed-length record size
+  0x20    Fixed-length record pad
+  4096    Underlying database page size
+  131072  Underlying database extent size
+  100000  Number of records in the database
+  33334   Number of database pages
+  2048    Number of bytes free in database pages (99% ff)
+  1       First undeleted record
+  100001  Next available record number
+  
+Feedback
+=========
+MemcacheDB mailing list now hosts on Google Group: http://groups.google.com/group/memcachedb
+
+* To subscribe to maillist, send email to memcachedb-subscribe@googlegroups.com
+* To post to maillist, send email to memcachedb@googlegroups.com
+* To unsubscribe from maillist, send email to memcachedb-unsubscribe@googlegroups.com
+
+Please report your bugs and issues to the Maillist.
+
+Last updated by Steve Chu<http://stvchu.org>: 09/22/2008

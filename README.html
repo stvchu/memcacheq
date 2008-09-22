@@ -296,40 +296,38 @@ ul.auto-toc {
 <div class="section" id="features">
 <h1>Features</h1>
 <ul class="simple">
-<li>High performance</li>
-<li>Strictly FIFO</li>
-<li>Multiple queue supported</li>
-<li>Memcache protocol compatible</li>
-<li>Simple and easy to use</li>
+<li>damn simple</li>
+<li>very fast</li>
+<li>multiple queue</li>
+<li>concurrent well</li>
+<li>memcache protocol compatible</li>
 </ul>
-</div>
-<div class="section" id="benchmark">
-<h1>Benchmark</h1>
 </div>
 <div class="section" id="getting-started">
 <h1>Getting Started</h1>
 <div class="section" id="download">
 <h2>Download</h2>
-<p>See &lt;<a class="reference external" href="http://code.google.com/p/memcacheq/downloads/list">http://code.google.com/p/memcacheq/downloads/list</a>&gt;</p>
+<p>See: &lt;<a class="reference external" href="http://code.google.com/p/memcacheq/downloads/list">http://code.google.com/p/memcacheq/downloads/list</a>&gt;</p>
 </div>
 <div class="section" id="installation">
 <h2>Installation</h2>
-<p>See &lt;<a class="reference external" href="http://memcachedb.org/memcacheq/INSTALL.html">http://memcachedb.org/memcacheq/INSTALL.html</a>&gt;</p>
+<p>See: &lt;<a class="reference external" href="http://memcachedb.org/memcacheq/INSTALL.html">http://memcachedb.org/memcacheq/INSTALL.html</a>&gt;</p>
+<p>Please take a look at 'ChangLog' file in the distribution, see what's new.</p>
 </div>
 <div class="section" id="commands">
 <h2>Commands</h2>
 <p>Only two commands are used to operate the queue:</p>
 <p><strong>Append a message to the tail of queue</strong>:</p>
 <pre class="literal-block">
-set &lt;queue name&gt; 0 0 &lt;message_len&gt;\r\n
+set &lt;queue name&gt; &lt;flags&gt; 0 &lt;message_len&gt;\r\n
 &lt;put your message body here&gt;\r\n
 STORED\r\n
 </pre>
-<p><strong>Note:</strong> MQ will create a new queue automatically if your queue is not existed. The original 'flags' and 'expire time' field is ignored by server(here just padded with 0).</p>
-<p><strong>Pop a message from the head of queue</strong>:</p>
+<p><strong>Note:</strong> MQ will create a new queue automatically if your queue is not existed. The original 'expire time' field is ignored by server.</p>
+<p><strong>Consume a message from the head of queue</strong>:</p>
 <pre class="literal-block">
 get &lt;queue name&gt;\r\n
-VALUE &lt;queue name&gt; 0 &lt;message_len&gt;\r\n
+VALUE &lt;queue name&gt; &lt;flags&gt; &lt;message_len&gt;\r\n
 &lt;your message body will come here&gt;\r\n
 END\r\n
 </pre>
@@ -345,7 +343,7 @@ $memcache_obj = memcache_connect('memcacheq_host', 21201);
 /* append a message to queue */
 memcache_set($memcache_obj, 'demoqueue1', 'message body here', 0, 0);
 
-/* pop a message from 'demoqueue1' */
+/* consume a message from 'demoqueue1' */
 memcache_get($memcache_obj, 'demoqueue1');
 
 memcache_close($memcache_obj);
@@ -360,6 +358,59 @@ memcache_close($memcache_obj);
 <p>&quot;For the Queue access method, the record length must be enough smaller than the database's page size that at least one record plus the database page's metadata information can fit on each database page.&quot;</p>
 <p>&quot;The minimum page size is 512 bytes, the maximum page size is 64K bytes, and the page size must be a power-of-two.&quot;</p>
 <p>So we have a limit on the message body size with a max of a bit less than <em>64K</em>.</p>
+</div>
+<div class="section" id="other-tips">
+<h1>Other tips</h1>
+<p>use 'stats queue' to see your current queues:</p>
+<pre class="literal-block">
+$ telnet 127.0.0.1 22201
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+stats queue
+STAT test1
+STAT test2
+STAT test3
+STAT test4
+END
+</pre>
+<p>delete a queue:</p>
+<pre class="literal-block">
+$ telnet 127.0.0.1 22201
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+delete test1
+DELETED
+</pre>
+<p>'db_stat' a queue to see how many records now in:</p>
+<pre class="literal-block">
+$ cd &lt;your queue dir&gt;
+$ /usr/local/BerkeleyDB.4.7/bin/db_stat -d test1
+Mon Sep 22 20:25:56 2008      Local time
+42253   Queue magic number
+4       Queue version number
+1024    Fixed-length record size
+0x20    Fixed-length record pad
+4096    Underlying database page size
+131072  Underlying database extent size
+100000  Number of records in the database
+33334   Number of database pages
+2048    Number of bytes free in database pages (99% ff)
+1       First undeleted record
+100001  Next available record number
+</pre>
+</div>
+<div class="section" id="feedback">
+<h1>Feedback</h1>
+<p>MemcacheDB mailing list now hosts on Google Group: <a class="reference external" href="http://groups.google.com/group/memcachedb">http://groups.google.com/group/memcachedb</a></p>
+<ul class="simple">
+<li>To subscribe to maillist, send email to <a class="reference external" href="mailto:memcachedb-subscribe&#64;googlegroups.com">memcachedb-subscribe&#64;googlegroups.com</a></li>
+<li>To post to maillist, send email to <a class="reference external" href="mailto:memcachedb&#64;googlegroups.com">memcachedb&#64;googlegroups.com</a></li>
+<li>To unsubscribe from maillist, send email to <a class="reference external" href="mailto:memcachedb-unsubscribe&#64;googlegroups.com">memcachedb-unsubscribe&#64;googlegroups.com</a></li>
+</ul>
+<p>Please report your bugs and issues to the Maillist.</p>
+<p>Last updated by Steve Chu&lt;<a class="reference external" href="http://stvchu.org">http://stvchu.org</a>&gt;: 09/22/2008</p>
 </div>
 </div>
 </body>
