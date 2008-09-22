@@ -1,0 +1,81 @@
+===============================================
+MemcacheQ - Simple Queue Service over Memcache
+===============================================
+
+Features
+=========
+* High performance
+* Strictly FIFO
+* Multiple queue supported
+* Memcache protocol compatible
+* Simple and easy to use
+
+Benchmark
+==========
+
+
+Getting Started
+===============
+
+Download
+---------
+See <http://code.google.com/p/memcacheq/downloads/list>
+
+Installation
+-------------
+See <http://memcachedb.org/memcacheq/INSTALL.html>
+
+Commands
+---------
+
+Only two commands are used to operate the queue:
+
+**Append a message to the tail of queue**::
+
+   set <queue name> 0 0 <message_len>\r\n
+   <put your message body here>\r\n
+   STORED\r\n
+
+**Note:** MQ will create a new queue automatically if your queue is not existed. The original 'flags' and 'expire time' field is ignored by server(here just padded with 0).
+
+**Pop a message from the head of queue**::
+
+   get <queue name>\r\n
+   VALUE <queue name> 0 <message_len>\r\n
+   <your message body will come here>\r\n
+   END\r\n
+
+   
+Examples
+---------
+
+Assuming you are using PHP memcache<http://www.php.net/memcache>::
+
+  <?php
+  /* connect to memcached server */
+  $memcache_obj = memcache_connect('memcacheq_host', 21201);
+
+  /* append a message to queue */
+  memcache_set($memcache_obj, 'demoqueue1', 'message body here', 0, 0);
+  
+  /* pop a message from 'demoqueue1' */
+  memcache_get($memcache_obj, 'demoqueue1');
+
+  memcache_close($memcache_obj);
+  ?>
+  
+Limitation
+===========
+The message body is stored in Berkeley DB with fixed length. Any message that is shorter than the declared length will automatically be padded with space character (0x20 in the ASCII character set). 
+
+In Berkeley DB, as the official document refers,
+
+"For the Queue access method, the record length must be enough smaller than the database's page size that at least one record plus the database page's metadata information can fit on each database page."
+
+"The minimum page size is 512 bytes, the maximum page size is 64K bytes, and the page size must be a power-of-two."
+
+So we have a limit on the message body size with a max of a bit less than *64K*.
+
+
+
+

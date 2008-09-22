@@ -1,0 +1,13 @@
+2008-09-19 Steve Chu <stvchu@gmail.com>
+* version 0.1.0 is released.
+
+2008-09-19 Steve Chu <stvchu@gmail.com>
+* All code is rewritten based on latest memcachedb, and multiple queue is supported.
+Please see 'README.html' for usage.
+
+2008-03-17 Steve Chu <stvchu@gmail.com>
+* add a '-A' option to set page size
+
+2008-03-15 Steve Chu <stvchu@gmail.com>
+* version 0.0.1 is released.
+
