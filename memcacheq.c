@@ -836,155 +836,6 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
         return;
     }
 
-    if (strcmp(subcommand, "repcfg") == 0) {
-        char temp[512];
-        char *pos = temp;
-        int ret;
-        if (bdb_settings.is_replicated == 1){
-            if (envp->rep_get_priority(envp, &bdb_settings.rep_priority) == 0){
-                pos += sprintf(pos, "STAT rep_priority %d\r\n", bdb_settings.rep_priority);
-            }
-            if (envp->repmgr_get_ack_policy(envp, &bdb_settings.rep_ack_policy) == 0){
-                pos += sprintf(pos, "STAT rep_ack_policy %d\r\n", bdb_settings.rep_ack_policy);
-            }
-
-            if (envp->rep_get_timeout(envp, DB_REP_ACK_TIMEOUT, &bdb_settings.rep_ack_timeout) == 0){
-                pos += sprintf(pos, "STAT rep_ack_timeout %u\r\n", bdb_settings.rep_ack_timeout);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_CHECKPOINT_DELAY, &bdb_settings.rep_chkpoint_delay) == 0){
-                pos += sprintf(pos, "STAT rep_chkpoint_delay %u\r\n", bdb_settings.rep_chkpoint_delay);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_CONNECTION_RETRY, &bdb_settings.rep_conn_retry) == 0){
-                pos += sprintf(pos, "STAT rep_conn_retry %u\r\n", bdb_settings.rep_conn_retry);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_ELECTION_TIMEOUT, &bdb_settings.rep_elect_timeout) == 0){
-                pos += sprintf(pos, "STAT rep_elect_timeout %u\r\n", bdb_settings.rep_elect_timeout);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_ELECTION_RETRY, &bdb_settings.rep_elect_retry) == 0){
-                pos += sprintf(pos, "STAT rep_elect_retry %u\r\n", bdb_settings.rep_elect_retry);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_HEARTBEAT_MONITOR, &bdb_settings.rep_heartbeat_monitor) == 0){
-                pos += sprintf(pos, "STAT rep_heartbeat_monitor %u\r\n", bdb_settings.rep_heartbeat_monitor);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_HEARTBEAT_SEND, &bdb_settings.rep_heartbeat_send) == 0){
-                pos += sprintf(pos, "STAT rep_heartbeat_send %u\r\n", bdb_settings.rep_heartbeat_send);
-            }
-            if (envp->rep_get_timeout(envp, DB_REP_LEASE_TIMEOUT, &bdb_settings.rep_lease_timeout) == 0){
-                pos += sprintf(pos, "STAT rep_lease_timeout %u\r\n", bdb_settings.rep_lease_timeout);
-            }
-
-            if (envp->rep_get_config(envp, DB_REP_CONF_BULK, &bdb_settings.rep_bulk) == 0){
-                pos += sprintf(pos, "STAT rep_bulk %d\r\n", bdb_settings.rep_bulk);
-            }
-            if (envp->rep_get_config(envp, DB_REP_CONF_LEASE, &bdb_settings.rep_lease) == 0){
-                pos += sprintf(pos, "STAT rep_lease %d\r\n", bdb_settings.rep_lease);
-            }
-
-            if (envp->rep_get_request(envp, &bdb_settings.rep_req_min, &bdb_settings.rep_req_max) == 0){ 
-                pos += sprintf(pos, "STAT rep_request %u/%u\r\n", bdb_settings.rep_req_min, bdb_settings.rep_req_max);
-            } 
-
-            if (envp->rep_get_clockskew(envp, &bdb_settings.rep_fast_clock, &bdb_settings.rep_slow_clock) == 0){ 
-                pos += sprintf(pos, "STAT rep_clock %u/%u\r\n", bdb_settings.rep_fast_clock, bdb_settings.rep_slow_clock);
-            } 
-
-            if (envp->rep_get_limit(envp, &bdb_settings.rep_limit_gbytes, &bdb_settings.rep_limit_bytes) == 0){ 
-                pos += sprintf(pos, "STAT rep_limit %u/%u\r\n", bdb_settings.rep_limit_gbytes, bdb_settings.rep_limit_bytes);
-            } 
-
-            if (envp->rep_get_nsites(envp, &bdb_settings.rep_nsites) == 0){ 
-                pos += sprintf(pos, "STAT rep_nsites %u\r\n", bdb_settings.rep_nsites);
-            } 
-        }
-        pos += sprintf(pos, "END");
-        out_string(c, temp);
-        return;
-    }
-
-    if (strcmp(subcommand, "repgrp") == 0) {
-        char temp[1024];
-        char *pos = temp;
-        int ret;
-        if (bdb_settings.is_replicated == 1){
-            DB_REPMGR_SITE *list = NULL;
-            u_int count, i;
-            if ((0 == envp->repmgr_site_list(envp, &count, &list))) { 
-                for (i = 0; i < count; ++i) {
-                        pos += sprintf(pos, "STAT %d/%s:%d/%d\r\n", list[i].eid, list[i].host, list[i].port, list[i].status);
-                }
-            }
-            if (list != NULL)
-                free(list);
-    	}
-        pos += sprintf(pos, "END");
-        out_string(c, temp);
-        return;
-    }
-
-    if (strcmp(subcommand, "repms") == 0) {
-        char temp[1024];
-        char *pos = temp;
-        int ret;
-        if (bdb_settings.is_replicated == 1){
-            DB_REPMGR_SITE *list = NULL;
-            u_int count, i;
- 
-            if (DB_EID_INVALID == bdb_settings.rep_master_eid) {
-                pos += sprintf(pos, "STAT rep_whoismaster REP_UNKNOWN\r\n");
-            }
- 
-            if (BDB_EID_SELF == bdb_settings.rep_master_eid) {
-                pos += sprintf(pos, "STAT rep_whoismaster %s:%d\r\n",bdb_settings.rep_localhost, bdb_settings.rep_localport);
-            }else {
-                if ((0 == envp->repmgr_site_list(envp, &count, &list))) { 
-                    for (i = 0; i < count; ++i) {
-                        if(bdb_settings.rep_master_eid == list[i].eid) {
-                            pos += sprintf(pos, "STAT rep_whoismaster %s:%d\r\n", list[i].host, list[i].port);
-                            break;
-                        }
-                    }
-                }
-            }
-            if (list != NULL)
-                free(list);
- 
-            pos += sprintf(pos, "STAT rep_localhp %s:%d\r\n", bdb_settings.rep_localhost, bdb_settings.rep_localport);
-
-            /* if it is master */
-            switch (bdb_settings.rep_is_master) {
-                case 1:
-                    pos += sprintf(pos, "STAT rep_ismaster REP_TRUE\r\n");
-                    break;
-                case 0:
-                    pos += sprintf(pos, "STAT rep_ismaster REP_FALSE\r\n");
-                    break;
-                default:
-                    pos += sprintf(pos, "STAT rep_ismaster REP_UNKNOWN\r\n");
-            }
-    	}
-        pos += sprintf(pos, "END");
-        out_string(c, temp);
-        return;
-    }
-
-    if (strcmp(subcommand, "replsn") == 0) {
-        char temp[128];
-        char *pos = temp;
-        int ret;
-        DB_REP_STAT *statp;
-        if (bdb_settings.is_replicated == 1){
-            if (envp->rep_stat(envp, &statp, 0) == 0){
-                pos += sprintf(pos, "STAT rep_next_lsn %lu/%lu\r\n", (u_long)statp->st_next_lsn.file, (u_long)statp->st_next_lsn.offset);
-            }
-            if (statp != NULL)
-                free(statp);
-    	}
-
-        pos += sprintf(pos, "END");
-        out_string(c, temp);
-        return;
-    }
-
 #ifdef HAVE_MALLOC_H
 #ifdef HAVE_STRUCT_MALLINFO
     if (strcmp(subcommand, "malloc") == 0) {
@@ -1245,151 +1096,6 @@ static void process_verbosity_command(conn *c, token_t *tokens, const size_t nto
     return;
 }
 
-static void process_rep_command(conn *c, token_t *tokens, const size_t ntokens) {
-
-    assert(c != NULL);
-
-    if (0 == bdb_settings.is_replicated){
-        out_string(c, "REP_DISABLE");
-        return;
-    }
-
-    if (ntokens == 2 && strcmp(tokens[COMMAND_TOKEN].value, "rep_ismaster") == 0){
-        switch (bdb_settings.rep_is_master) {
-            case 1:
-                out_string(c, "REP_TRUE");
-                break;
-            case 0:
-                out_string(c, "REP_FALSE");
-                break;
-            default:
-                out_string(c, "REP_UNKNOWN");
-        }
-        return;
-    
-    }else if (ntokens == 2 && strcmp(tokens[COMMAND_TOKEN].value, "rep_whoismaster") == 0){
-        DB_REPMGR_SITE *list = NULL;
-        u_int count, i;
-        char temp[256];
-
-        if (0 == bdb_settings.is_replicated){
-            out_string(c, "REP_DISABLE");
-            return;
-        }
-
-        if (DB_EID_INVALID == bdb_settings.rep_master_eid) {
-            out_string(c, "REP_UNKNOWN");
-            return;
-        }
-
-        if (BDB_EID_SELF == bdb_settings.rep_master_eid) {
-            snprintf(temp, 255, "%s:%d",bdb_settings.rep_localhost, bdb_settings.rep_localport);
-        }else {
-            if ((0 == envp->repmgr_site_list(envp, &count, &list))) { 
-                for (i = 0; i < count; ++i) {
-                    if(bdb_settings.rep_master_eid == list[i].eid) {
-                        snprintf(temp, 255, "%s:%d",list[i].host,list[i].port);
-                        break;
-                    }
-                }
-            }
-        }
-        out_string(c, temp);
-        if (list != NULL)
-            free(list);
-        return;
-    
-    }else if (ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "rep_set_priority") == 0){
-        int priority;
-        char temp[32];
-        priority = strtoul(tokens[1].value, NULL, 10);
-        if(errno == ERANGE || priority < 0) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
-        bdb_settings.rep_priority = priority > MAX_REP_PRIORITY ? MAX_REP_PRIORITY : priority;
-        if (envp->rep_set_priority(envp, bdb_settings.rep_priority) != 0){
-            out_string(c, "SERVER_ERROR envp->rep_set_priority");
-            return;
-        }
-        snprintf(temp, 31, "%d", bdb_settings.rep_priority);
-        out_string(c, temp);
-
-    }else if (ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "rep_set_ack_policy") == 0){
-        int ack_policy;
-        char temp[32];
-        ack_policy = strtoul(tokens[1].value, NULL, 10);
-        if(errno == ERANGE || ack_policy <= 0) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
-        bdb_settings.rep_ack_policy = ack_policy > MAX_REP_ACK_POLICY ? MAX_REP_ACK_POLICY : ack_policy;
-        if (envp->repmgr_set_ack_policy(envp, bdb_settings.rep_ack_policy) != 0){
-            out_string(c, "SERVER_ERROR envp->repmgr_set_ack_policy");
-            return;
-        }
-        snprintf(temp, 31, "%d", bdb_settings.rep_ack_policy);
-        out_string(c, temp);
-
-     }else if (ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "rep_set_ack_timeout") == 0){
-        u_int32_t ack_timeout;
-        char temp[32];
-        ack_timeout = strtoul(tokens[1].value, NULL, 10);
-        if(errno == ERANGE) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
-        bdb_settings.rep_ack_timeout = ack_timeout > MAX_REP_ACK_TIMEOUT ? MAX_REP_ACK_TIMEOUT : ack_timeout;
-        if (envp->rep_set_timeout(envp, DB_REP_ACK_TIMEOUT, bdb_settings.rep_ack_timeout) != 0){
-            out_string(c, "SERVER_ERROR envp->repmgr_set_ack_timeout");
-            return;
-        }
-        snprintf(temp, 31, "%d", bdb_settings.rep_ack_timeout);
-        out_string(c, temp);
-    }else if (ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "rep_set_bulk") == 0){
-        int bulk;
-        char temp[32];
-        bulk = strtoul(tokens[1].value, NULL, 10);
-        if(errno == ERANGE || bulk < 0) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
-        bdb_settings.rep_bulk = bulk > MAX_REP_BULK ? MAX_REP_BULK : bulk;
-        if (envp->rep_set_config(envp, DB_REP_CONF_BULK, bdb_settings.rep_bulk) != 0){
-            out_string(c, "SERVER_ERROR envp->rep_set_config");
-            return;
-        }
-        snprintf(temp, 31, "%d", bdb_settings.rep_bulk);
-        out_string(c, temp);
-     }else if (ntokens == 4 && strcmp(tokens[COMMAND_TOKEN].value, "rep_set_request") == 0){
-        u_int32_t req_min, req_max;
-        char temp[32];
-        req_min = strtoul(tokens[1].value, NULL, 10);
-        if(errno == ERANGE) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
-        req_max = strtoul(tokens[2].value, NULL, 10);
-        if(errno == ERANGE) {
-            out_string(c, "CLIENT_ERROR bad command line format");
-            return;
-        }
- 
-        bdb_settings.rep_req_min = req_min < MAX_REP_REQUEST_MIN ? MAX_REP_REQUEST_MIN : req_min;
-        bdb_settings.rep_req_max = req_max > MAX_REP_REQUEST_MAX ? MAX_REP_REQUEST_MAX : req_max;
-        if (envp->rep_set_request(envp, bdb_settings.rep_req_min, bdb_settings.rep_req_max) != 0){
-            out_string(c, "SERVER_ERROR envp->set_rep_request");
-            return;
-        }
-        snprintf(temp, 31, "%u/%u", bdb_settings.rep_req_min, bdb_settings.rep_req_max);
-        out_string(c, temp);
-
-    }else {
-        out_string(c, "ERROR");
-    }
-    return;
-}
-
 static void process_bdb_command(conn *c, token_t *tokens, const size_t ntokens) {
 	int ret;
     assert(c != NULL);
@@ -1476,17 +1182,6 @@ static void process_command(conn *c, char *command) {
     } else if (ntokens == 3 && (strcmp(tokens[COMMAND_TOKEN].value, "verbosity") == 0)) {
 
         process_verbosity_command(c, tokens, ntokens);
-
-    } else if (ntokens >= 2 && ntokens <= 4 &&
-               ((strcmp(tokens[COMMAND_TOKEN].value, "rep_ismaster") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_whoismaster") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_set_ack_policy") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_set_ack_timeout") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_set_bulk") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_set_request") == 0 ) ||
-                (strcmp(tokens[COMMAND_TOKEN].value, "rep_set_priority") == 0 ))) {
-
-        process_rep_command(c, tokens, ntokens);
 
     } else if (ntokens == 2 && 
               ((strcmp(tokens[COMMAND_TOKEN].value, "db_archive") == 0 ) ||
@@ -2226,7 +1921,6 @@ static void usage(void) {
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-c <num>      max simultaneous connections, default is 1024\n"
-           "-b <num>      item size smaller than <num> will use fast memory alloc, default is 512B\n"
            "-v            verbose (print errors/warnings while in event loop)\n"
            "-vv           very verbose (also print client commands/reponses)\n"
            "-h            print this help and exit\n"
@@ -2250,11 +1944,6 @@ static void usage(void) {
     
     printf("-D <num>      do deadlock detecting every <num> millisecond, 0 for disable, default is 100ms\n");
     printf("-N            enable DB_TXN_NOSYNC to gain big performance improved, default is off\n");
-    printf("--------------------Replication Options-------------------------------\n");
-    printf("-R            identifies the host and port used by this site (required).\n");
-    printf("-O            identifies another site participating in this replication group\n");
-    printf("-M/-S         start as a master or slave\n");
-    printf("-----------------------------------------------------------------------\n");
 
     return;
 }
@@ -2545,39 +2234,6 @@ int main (int argc, char **argv) {
             break;
         case 'N':
             bdb_settings.txn_nosync = 1;
-            break;
-        case 'M':
-            if (bdb_settings.rep_start_policy == DB_REP_CLIENT){
-                fprintf(stderr, "Can't not be a Master and Slave at same time.\n");
-                exit(EXIT_FAILURE);
-            }else{
-               bdb_settings.rep_start_policy = DB_REP_MASTER;
-            }
-            break;
-       case 'S':
-            if (bdb_settings.rep_start_policy == DB_REP_MASTER){
-                fprintf(stderr, "Can't not be a Master and Slave at same time.\n");
-                exit(EXIT_FAILURE);
-            }else{
-               bdb_settings.rep_start_policy = DB_REP_CLIENT;
-            }
-            break;
-        case 'R':
-           bdb_settings.is_replicated = 1;
-           bdb_settings.rep_localhost = strtok(optarg, ":");
-            if ((portstr = strtok(NULL, ":")) == NULL) {
-                fprintf(stderr, "Bad host specification.\n");
-                exit(EXIT_FAILURE);
-            }
-           bdb_settings.rep_localport = (unsigned short)atoi(portstr);
-            break;
-        case 'O':
-            bdb_settings.rep_remotehost = strtok(optarg, ":");
-            if ((portstr = strtok(NULL, ":")) == NULL) {
-                fprintf(stderr, "Bad host specification.\n");
-                exit(EXIT_FAILURE);
-            }
-            bdb_settings.rep_remoteport = (unsigned short)atoi(portstr);
             break;
 
         default:

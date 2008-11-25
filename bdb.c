@@ -65,39 +65,6 @@ void bdb_settings_init(void)
                           | DB_INIT_TXN
                           | DB_RECOVER;
                               
-    bdb_settings.is_replicated = 0;
-    bdb_settings.rep_localhost = "127.0.0.1"; /* local host in replication */
-    bdb_settings.rep_localport = 32201;  /* local port in replication */
-    bdb_settings.rep_remotehost = NULL; /* local host in replication */
-    bdb_settings.rep_remoteport = 0;  /* local port in replication */
-    bdb_settings.rep_is_master = -1; /* 1 on YES, 0 on NO, -1 on UNKNOWN, for two sites replication */
-    bdb_settings.rep_master_eid = DB_EID_INVALID;
-    bdb_settings.rep_start_policy = DB_REP_ELECTION;
-    bdb_settings.rep_nsites = 2;
-    bdb_settings.rep_ack_policy = DB_REPMGR_ACKS_ONE_PEER;
-
-    bdb_settings.rep_ack_timeout = 20 * 1000;
-    bdb_settings.rep_chkpoint_delay = 0;
-    bdb_settings.rep_conn_retry = 30 * 1000 * 1000;
-    bdb_settings.rep_elect_timeout = 2 * 1000 * 1000;
-    bdb_settings.rep_elect_retry = 10 * 1000 * 1000;
-    bdb_settings.rep_heartbeat_monitor = 60 * 1000 * 1000;
-    bdb_settings.rep_heartbeat_send = 60 * 1000 * 1000;
-    bdb_settings.rep_lease_timeout = 0;
-
-    bdb_settings.rep_bulk = 1;
-    bdb_settings.rep_lease = 0;
-
-    bdb_settings.rep_priority = 100;
-
-    bdb_settings.rep_req_min = 40000;
-    bdb_settings.rep_req_max = 1280000;
-
-    bdb_settings.rep_fast_clock = 102;
-    bdb_settings.rep_slow_clock = 100;
-
-    bdb_settings.rep_limit_gbytes = 0;
-    bdb_settings.rep_limit_bytes = 10 * 1024 * 1024;
 }
 
 void bdb_env_init(void){
@@ -159,72 +126,11 @@ void bdb_env_init(void){
         }
     }
     
-    if(bdb_settings.is_replicated) {
-        bdb_settings.env_flags |= DB_INIT_REP;
-        if (settings.verbose > 1) {
-            if ((ret = envp->set_verbose(envp, DB_VERB_REPLICATION, 1)) != 0) {
-                fprintf(stderr, "envp->set_verbose[DB_VERB_REPLICATION]: %s\n",
-                        db_strerror(ret));
-                exit(EXIT_FAILURE);
-            }
-        }
-        envp->set_event_notify(envp, bdb_event_callback);
-        envp->repmgr_set_ack_policy(envp, bdb_settings.rep_ack_policy);
-
-		/* set replication timeout */
-        envp->rep_set_timeout(envp, DB_REP_ACK_TIMEOUT, bdb_settings.rep_ack_timeout);
-        envp->rep_set_timeout(envp, DB_REP_CHECKPOINT_DELAY, bdb_settings.rep_chkpoint_delay);
-        envp->rep_set_timeout(envp, DB_REP_CONNECTION_RETRY, bdb_settings.rep_conn_retry);
-        envp->rep_set_timeout(envp, DB_REP_ELECTION_TIMEOUT, bdb_settings.rep_elect_timeout);
-        envp->rep_set_timeout(envp, DB_REP_ELECTION_RETRY, bdb_settings.rep_elect_retry);
-        envp->rep_set_timeout(envp, DB_REP_HEARTBEAT_MONITOR, bdb_settings.rep_heartbeat_monitor);
-        envp->rep_set_timeout(envp, DB_REP_HEARTBEAT_SEND, bdb_settings.rep_heartbeat_send);
-        //envp->rep_set_timeout(envp, DB_REP_LEASE_TIMEOUT, bdb_settings.rep_lease_timeout);
-
-		/* set replication configure */
-        envp->rep_set_config(envp, DB_REP_CONF_BULK, bdb_settings.rep_bulk);
-        //envp->rep_set_config(envp, DB_REP_CONF_LEASE, bdb_settings.rep_lease);
-
-        envp->rep_set_priority(envp, bdb_settings.rep_priority);
-        envp->rep_set_request(envp, bdb_settings.rep_req_min, bdb_settings.rep_req_max);
-        //envp->rep_set_clockskew(envp, bdb_settings.rep_fast_clock, bdb_settings.rep_slow_clock);
-		envp->rep_set_limit(envp, bdb_settings.rep_limit_gbytes, bdb_settings.rep_limit_bytes);
-
-        if ((ret = envp->repmgr_set_local_site(envp, bdb_settings.rep_localhost, bdb_settings.rep_localport, 0)) != 0) {
-            fprintf(stderr, "repmgr_set_local_site[%s:%d]: %s\n", 
-                    bdb_settings.rep_localhost, bdb_settings.rep_localport, db_strerror(ret));
-            exit(EXIT_FAILURE);
-        }
-        if(NULL != bdb_settings.rep_remotehost) {
-            if ((ret = envp->repmgr_add_remote_site(envp, bdb_settings.rep_remotehost, bdb_settings.rep_remoteport, NULL, 0)) != 0) {
-                fprintf(stderr, "repmgr_add_remote_site[%s:%d]: %s\n", 
-                        bdb_settings.rep_remotehost, bdb_settings.rep_remoteport, db_strerror(ret));
-                exit(EXIT_FAILURE);
-            }
-        }
-        if ((ret = envp->rep_set_nsites(envp, bdb_settings.rep_nsites)) != 0) {
-            fprintf(stderr, "rep_set_nsites: %s\n", db_strerror(ret));
-            exit(EXIT_FAILURE);
-        }
-    }
-
     if ((ret = envp->open(envp, bdb_settings.env_home, bdb_settings.env_flags, 0)) != 0) {
         fprintf(stderr, "db_env_open: %s\n", db_strerror(ret));
         exit(EXIT_FAILURE);
     }
 
-
-    if(bdb_settings.is_replicated) {
-        /* repmgr_start must run after daemon !!!*/
-        if ((ret = envp->repmgr_start(envp, 3, bdb_settings.rep_start_policy)) != 0) {
-            fprintf(stderr, "envp->repmgr_start: %s\n", db_strerror(ret));
-            exit(EXIT_FAILURE);
-        }
-        /* sleep 5 second for electing */
-        if (bdb_settings.rep_start_policy == DB_REP_ELECTION) {
-            sleep(5);
-        }
-    }
 }
 
 
@@ -246,12 +152,6 @@ void bdb_qlist_db_open(void){
     
     /* for replicas to get a full master copy, then open db */
     while(!db_open) {
-        /* if replica, just scratch the db file from a master */
-        if (bdb_settings.is_replicated){
-            if ( 1 != bdb_settings.rep_is_master)
-              qlist_db_flags = 0;
-        }
-
         /* close the queue list db */
         if (qlist_dbp != NULL) {
             qlist_dbp->close(qlist_dbp, 0);
@@ -283,7 +183,6 @@ void bdb_qlist_db_open(void){
             break;
         case ENOENT:
         case DB_LOCK_DEADLOCK:
-        case DB_REP_LOCKOUT:
             fprintf(stderr, "bdb_qlist_db_open: %s\n", db_strerror(ret));
             sleep(3);
             break;
@@ -356,12 +255,6 @@ static int open_exsited_queue_db(DB_TXN *txn, char *queue_name, DB **queue_dbp){
     
     /* for replicas to get a full master copy, then open db */
     while(!db_open) {
-        /* if replica, just scratch the db file from a master */
-        if (bdb_settings.is_replicated){
-            if ( 1 != bdb_settings.rep_is_master)
-              db_flags = 0;
-        }
-
         if (temp_dbp != NULL){
             temp_dbp->close(temp_dbp, 0);
             temp_dbp = NULL;
@@ -401,7 +294,6 @@ static int open_exsited_queue_db(DB_TXN *txn, char *queue_name, DB **queue_dbp){
             break;
         case ENOENT:
         case DB_LOCK_DEADLOCK:
-        case DB_REP_LOCKOUT:
             fprintf(stderr, "temp_dbp[%s]->open: %s\n", queue_name, db_strerror(ret));
             sleep(2);
             break;
@@ -575,6 +467,7 @@ int print_queue_db_list(char *buf, size_t buf_size){
     
     /* Iterate over the database, retrieving each record in turn. */
     while ((ret = cursorp->get(cursorp, &dbkey, &dbdata, DB_NEXT)) == 0) {
+        queue_name[dbkey.size] = '\0';
         if (remains > strlen(queue_name) + 8){
             res = sprintf(buf, "STAT %s\r\n", queue_name);
             remains -= res;
@@ -885,29 +778,6 @@ void *bdb_dl_detect_thread(void *arg)
 void bdb_event_callback(DB_ENV *envp, u_int32_t which, void *info)
 {
     switch (which) {
-    case DB_EVENT_REP_CLIENT:
-        fprintf(stderr, "event: DB_EVENT_REP_CLIENT, the local site[%s:%d] now a replication client.\n", 
-                bdb_settings.rep_localhost, bdb_settings.rep_localport);
-        bdb_settings.rep_is_master = 0;
-        break;
-    case DB_EVENT_REP_ELECTED:
-        fprintf(stderr, "event: DB_EVENT_REP_ELECTED, The local replication site[%s:%d] has just won an election.\n", 
-                bdb_settings.rep_localhost, bdb_settings.rep_localport);
-        break;
-    case DB_EVENT_REP_MASTER:
-        fprintf(stderr, "event: DB_EVENT_REP_MASTER, the local site[%s:%d] now the master site of its replication group.\n", bdb_settings.rep_localhost, bdb_settings.rep_localport);
-        bdb_settings.rep_is_master = 1;
-        bdb_settings.rep_master_eid = BDB_EID_SELF;
-        break;
-    case DB_EVENT_REP_NEWMASTER:
-        fprintf(stderr, "event: DB_EVENT_REP_NEWMASTER, a new master has been established, but not me[%s:%d]\n", 
-                bdb_settings.rep_localhost, bdb_settings.rep_localport);
-        bdb_settings.rep_master_eid = *(int*)info;
-        break;
-    case DB_EVENT_REP_PERM_FAILED:
-        fprintf(stderr, "event: insufficient acks, now I flush the transcation log buffer\n");
-        break;
-    case DB_EVENT_REP_STARTUPDONE: /* FALLTHROUGH */
     case DB_EVENT_PANIC: /* FALLTHROUGH */
     case DB_EVENT_WRITE_FAILED: /* FALLTHROUGH */
         break;

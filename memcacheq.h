@@ -54,16 +54,7 @@
 #define IOV_LIST_HIGHWAT 600
 #define MSG_LIST_HIGHWAT 100
 
-#define MAX_REP_PRIORITY 1000000
-#define MAX_REP_ACK_POLICY 6
-#define MAX_REP_ACK_TIMEOUT 3600000000ul
-#define MAX_REP_BULK 1
-#define MAX_REP_REQUEST_MAX 3600000000ul
-#define MAX_REP_REQUEST_MIN 10000ul
-
 #define DBHOME "/data1/memcacheq"
-
-#define BDB_EID_SELF -3
 
 /* Get a consistent bool type */
 #if HAVE_STDBOOL_H
@@ -132,44 +123,6 @@ struct bdb_settings {
     u_int32_t env_flags; /* env open flags */
     u_int32_t re_len;
     u_int32_t q_extentsize;
-
-    int is_replicated; /* replication is ON?? */
-
-    char *rep_localhost; /* local host in replication */
-    int rep_localport;  /* local port in replication */
-    char *rep_remotehost; /* remote host in replication */
-    int rep_remoteport;  /* remote port in replication */
-
-    int rep_is_master; /* 1 on YES, 0 on NO, -1 on UNKNOWN, for two sites replication */
-    int rep_master_eid; /* replication master's eid */
-
-    u_int32_t rep_start_policy;
-    u_int32_t rep_nsites;
-
-    int rep_ack_policy;
-
-    u_int32_t rep_ack_timeout;
-    u_int32_t rep_chkpoint_delay;
-    u_int32_t rep_conn_retry;
-    u_int32_t rep_elect_timeout;
-    u_int32_t rep_elect_retry;
-    u_int32_t rep_heartbeat_monitor; /* only available on a client */
-    u_int32_t rep_heartbeat_send;    /* only available on a master */
-    u_int32_t rep_lease_timeout;
-
-    int rep_bulk;
-	  int rep_lease;  /* if master lease is enabled? */
-
-    u_int32_t rep_priority;
-
-    u_int32_t rep_req_max;
-    u_int32_t rep_req_min;
-
-    u_int32_t rep_fast_clock;
-    u_int32_t rep_slow_clock;
-
-    u_int32_t rep_limit_gbytes; 
-    u_int32_t rep_limit_bytes; 
 };
 
 extern struct bdb_settings bdb_settings;

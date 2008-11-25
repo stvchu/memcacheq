@@ -1,3 +1,8 @@
+2008-11-25 Steve Chu <stvchu@gmail.com>
+* Bugfix: 'stats queue' did not return right queue name
+* All replication code has been discarded and removed. Original replication
+code is buggy, also nobody want to use replication on a message queue system.
+
 2008-09-19 Steve Chu <stvchu@gmail.com>
 * version 0.1.0 is released.
 
