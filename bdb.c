@@ -36,6 +36,13 @@ static int get_queue_db_handle(DB_TXN *txn, char *queue_name, size_t queue_name_
 static int update_queue_length(DB_TXN *txn, char *queue_name, size_t queue_name_size, int64_t delta);
 static void close_queue_db_list(void);
 
+static void *bdb_chkpoint_thread __P((void *));
+static void *bdb_memp_trickle_thread __P((void *));
+static void *bdb_dl_detect_thread __P((void *));
+static void bdb_event_callback __P((DB_ENV *, u_int32_t, void *));
+static void bdb_err_callback(const DB_ENV *dbenv, const char *errpfx, const char *msg);
+static void bdb_msg_callback(const DB_ENV *dbenv, const char *msg);
+
 static pthread_t chk_ptid;
 static pthread_t mtri_ptid;
 static pthread_t dld_ptid;
@@ -76,10 +83,12 @@ void bdb_env_init(void){
     }
 
     /* set err&msg display */
-    envp->set_errfile(envp, stderr);
     envp->set_errpfx(envp, PACKAGE);
-    envp->set_msgfile(envp, stderr);
-
+    /* env->set_errfile(env, stderr); */
+    /* env->set_msgfile(env, stderr); */
+	envp->set_errcall(envp, bdb_err_callback);
+  	envp->set_msgcall(envp, bdb_msg_callback);
+  	
     /* set BerkeleyDB verbose*/
     if (settings.verbose > 1) {
         if ((ret = envp->set_verbose(envp, DB_VERB_FILEOPS_ALL, 1)) != 0) {
@@ -113,8 +122,9 @@ void bdb_env_init(void){
     envp->set_lk_max_objects(envp, 20000);
     envp->set_tx_max(envp, 20000);
     
-    
-
+    /* at least max active transactions */
+  	envp->set_tx_max(envp, 10000);
+  	
     /* set transaction log buffer */
     envp->set_lg_bsize(envp, bdb_settings.txn_lg_bsize);
     
@@ -715,74 +725,101 @@ void start_dl_detect_thread(void){
     }
 }
 
-void *bdb_chkpoint_thread(void *arg)
+static void *bdb_chkpoint_thread(void *arg)
 {
-    DB_ENV *dbenvp;
+    DB_ENV *dbenv;
     int ret;
-    dbenvp = arg;
+    dbenv = arg;
     if (settings.verbose > 1) {
-        dbenvp->errx(dbenvp, "checkpoint thread created: %lu, every %d seconds", 
+        dbenv->errx(dbenv, "checkpoint thread created: %lu, every %d seconds", 
                            (u_long)pthread_self(), bdb_settings.chkpoint_val);
     }
     for (;; sleep(bdb_settings.chkpoint_val)) {
-        if ((ret = dbenvp->txn_checkpoint(dbenvp, 0, 0, 0)) != 0) {
-            dbenvp->err(dbenvp, ret, "checkpoint thread");
+        if ((ret = dbenv->txn_checkpoint(dbenv, 0, 0, 0)) != 0) {
+            dbenv->err(dbenv, ret, "checkpoint thread");
         }
-        if (settings.verbose > 1) {
-            dbenvp->errx(dbenvp, "checkpoint thread: done");
-        }
+        dbenv->errx(dbenv, "checkpoint thread: a txn_checkpoint is done");
     }
     return (NULL);
 }
 
-void *bdb_memp_trickle_thread(void *arg)
+static void *bdb_memp_trickle_thread(void *arg)
 {
-    DB_ENV *dbenvp;
+    DB_ENV *dbenv;
     int ret, nwrotep;
-    dbenvp = arg;
+    dbenv = arg;
     if (settings.verbose > 1) {
-        dbenvp->errx(dbenvp, "memp_trickle thread created: %lu, every %d seconds, %d%% pages should be clean.", 
+        dbenv->errx(dbenv, "memp_trickle thread created: %lu, every %d seconds, %d%% pages should be clean.", 
                            (u_long)pthread_self(), bdb_settings.memp_trickle_val,
                            bdb_settings.memp_trickle_percent);
     }
     for (;; sleep(bdb_settings.memp_trickle_val)) {
-        if ((ret = dbenvp->memp_trickle(dbenvp, bdb_settings.memp_trickle_percent, &nwrotep)) != 0) {
-            dbenvp->err(dbenvp, ret, "memp_trickle thread");
+        if ((ret = dbenv->memp_trickle(dbenv, bdb_settings.memp_trickle_percent, &nwrotep)) != 0) {
+            dbenv->err(dbenv, ret, "memp_trickle thread");
         }
-        if (settings.verbose > 1) {
-            dbenvp->errx(dbenvp, "memp_trickle thread: done, writing %d dirty pages", nwrotep);
-        }
+        dbenv->errx(dbenv, "memp_trickle thread: writing %d dirty pages", nwrotep);
     }
     return (NULL);
 }
 
-void *bdb_dl_detect_thread(void *arg)
+static void *bdb_dl_detect_thread(void *arg)
 {
-    DB_ENV *dbenvp;
+    DB_ENV *dbenv;
     struct timeval t;
-    dbenvp = arg;
+    dbenv = arg;
     if (settings.verbose > 1) {
-        dbenvp->errx(dbenvp, "deadlock detecting thread created: %lu, every %d millisecond",
+        dbenv->errx(dbenv, "deadlock detecting thread created: %lu, every %d millisecond",
                            (u_long)pthread_self(), bdb_settings.dldetect_val);
     }
     while (!daemon_quit) {
         t.tv_sec = 0;
         t.tv_usec = bdb_settings.dldetect_val;
-        (void)dbenvp->lock_detect(dbenvp, 0, DB_LOCK_YOUNGEST, NULL);
+        (void)dbenv->lock_detect(dbenv, 0, DB_LOCK_YOUNGEST, NULL);
         /* select is a more accurate sleep timer */
         (void)select(0, NULL, NULL, NULL, &t);
     }
     return (NULL);
 }
 
-void bdb_event_callback(DB_ENV *envp, u_int32_t which, void *info)
+static void bdb_event_callback(DB_ENV *env, u_int32_t which, void *info)
 {
     switch (which) {
-    case DB_EVENT_PANIC: /* FALLTHROUGH */
-    case DB_EVENT_WRITE_FAILED: /* FALLTHROUGH */
+    case DB_EVENT_PANIC:
+        env->errx(env, "evnet: DB_EVENT_PANIC, we got panic, recovery should be run.");
+        break;
+    case DB_EVENT_WRITE_FAILED:
+        env->errx(env, "event: DB_EVENT_WRITE_FAILED, I wrote to stable storage failed.");
         break;
     default:
-        envp->errx(envp, "ignoring event %d", which);
+        env->errx(env, "ignoring event %d", which);
+    }
+}
+
+static void bdb_err_callback(const DB_ENV *dbenv, const char *errpfx, const char *msg){
+	time_t curr_time = time(NULL);
+	char time_str[32];
+	strftime(time_str, 32, "%c", localtime(&curr_time));
+	fprintf(stderr, "[%s] [%s] \"%s\"\n", errpfx, time_str, msg);
+}
+
+static void bdb_msg_callback(const DB_ENV *dbenv, const char *msg){
+	time_t curr_time = time(NULL);
+	char time_str[32];
+	strftime(time_str, 32, "%c", localtime(&curr_time));
+	fprintf(stderr, "[%s] [%s] \"%s\"\n", PACKAGE, time_str, msg);
+}
+
+/* for atexit cleanup */
+void bdb_chkpoint(void)
+{
+    int ret = 0;
+    if (envp != NULL){
+        ret = envp->txn_checkpoint(envp, 0, 0, 0); 
+        if (0 != ret){
+            fprintf(stderr, "envp->txn_checkpoint: %s\n", db_strerror(ret));
+        }else{
+            fprintf(stderr, "envp->txn_checkpoint: OK\n");
+        }
     }
 }
 
@@ -793,7 +830,6 @@ void bdb_db_close(void){
     /* close the queue list db */
     if (qlist_dbp != NULL) {
         close_queue_db_list();
-        
         ret = qlist_dbp->close(qlist_dbp, 0);
         if (0 != ret){
             fprintf(stderr, "qlist_dbp->close: %s\n", db_strerror(ret));
@@ -817,18 +853,3 @@ void bdb_env_close(void){
         }
     }
 }
-
-/* for atexit cleanup */
-void bdb_chkpoint(void)
-{
-    int ret = 0;
-    if (envp != NULL){
-        ret = envp->txn_checkpoint(envp, 0, 0, 0); 
-        if (0 != ret){
-            fprintf(stderr, "envp->txn_checkpoint: %s\n", db_strerror(ret));
-        }else{
-            fprintf(stderr, "envp->txn_checkpoint: OK\n");
-        }
-    }
-}
-

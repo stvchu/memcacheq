@@ -2093,17 +2093,26 @@ static void remove_pidfile(const char *pid_file) {
 /* for safely exit, make sure to do checkpoint*/
 static void sig_handler(const int sig)
 {
+    int ret;
     if (sig != SIGTERM && sig != SIGQUIT && sig != SIGINT) {
         return;
     }
+    if (daemon_quit == 1){
+        return;
+    }
     daemon_quit = 1;
-    fprintf(stderr, "Signal %d handled, memcacahedb is now exit..\n", sig);
+    fprintf(stderr, "Signal(%d) received, try to exit daemon gracefully..\n", sig);
+
+    /* exit event loop first */
+    fprintf(stderr, "exit event base...");    
+    ret = event_base_loopexit(main_base, 0);
+    if (ret == 0)
+      fprintf(stderr, "done.\n");
+    else
+      fprintf(stderr, "error\n");
 
     /* make sure deadlock detect loop is quit*/
     sleep(2);
-
-    /* then we exit to call axexit */
-    exit(EXIT_SUCCESS);
 }
 
 int main (int argc, char **argv) {
@@ -2372,20 +2381,6 @@ int main (int argc, char **argv) {
         }
     }
     
-    /* register atexit callback function */
-    if (0 != atexit(bdb_env_close)) {
-        fprintf(stderr, "can not register close_env"); 
-        exit(EXIT_FAILURE);
-    }
-    if (0 != atexit(bdb_db_close)) {
-        fprintf(stderr, "can not register close_db"); 
-        exit(EXIT_FAILURE);
-    }
-    if (0 != atexit(bdb_chkpoint)) {
-        fprintf(stderr, "can not register db_checkpoint"); 
-        exit(EXIT_FAILURE);
-    }
-    
     /* here we init bdb env and open db */
     bdb_env_init();
     bdb_qlist_db_open();
@@ -2397,6 +2392,13 @@ int main (int argc, char **argv) {
         
     /* enter the event loop */
     event_base_loop(main_base, 0);
+    
+    /* cleanup bdb staff */
+    fprintf(stderr, "try to clean up bdb resource...\n");
+    bdb_chkpoint();
+    bdb_db_close();
+    bdb_env_close();
+    
     /* remove the PID file if we're a daemon */
     if (daemonize)
         remove_pidfile(pid_file);
