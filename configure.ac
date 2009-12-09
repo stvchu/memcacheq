@@ -149,5 +149,5 @@ if test "x$enable_threads" == "xyes"; then
   AC_SEARCH_LIBS([pthread_create], [pthread], [AC_DEFINE([USE_THREADS],,[Define this if you want to use pthreads])] ,[AC_MSG_ERROR(cannot find libpthread.so)])
 fi
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile tools/Makefile])
 AC_OUTPUT

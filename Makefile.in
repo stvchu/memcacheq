@@ -160,7 +160,7 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 memcacheq_SOURCES = memcacheq.c item.c memcacheq.h thread.c bdb.c hashtable.c hash.c daemon.c
-EXTRA_DIST = AUTHORS LICENSE INSTALL.html README.html
+EXTRA_DIST = tools AUTHORS LICENSE INSTALL.html README.html
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
