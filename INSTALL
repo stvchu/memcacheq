@@ -55,10 +55,17 @@ For example::
 
   memcacheq -d -r -H /data1/memcacheq -N -R -v -L 1024 -B 1024 > /data1/mq_error.log 2>&1
   
-Notice: Because MemcacheQ is using fixed-length storage, so you should use '-B' option to specify the max length of your message. Default is 1024 bytes. Any message that shorter than the length you specified will be padded with '0x20', the space character. A message includes following bytes::
+
+Stop the daemon
+===============
+It is safe to call 'kill <pid>' directly to stop the daemon. But be careful with kill -9.
+
+Notice
+=======
+Because MemcacheQ is using fixed-length storage, so you should use '-B' option to specify the max length of your message. Default is 1024 bytes. Any message that shorter than the length you specified will be padded with '0x20', the space character. A message includes following bytes::
 
   <your queue name bytes> + <message metadata(9 ~ 20+ bytes)> + <your message body bytes>
 
-use "-h" option to see more configures.
+Use "-h" option to see more configures.
 
 Have fun :)
