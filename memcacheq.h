@@ -221,6 +221,7 @@ struct bdb_settings {
     char *env_home;
     u_int32_t cache_size;
     u_int32_t txn_lg_bsize;
+    u_int32_t log_auto_remove;
     u_int32_t page_size;
     int txn_nosync;
     int deadlock_detect_val;
@@ -260,6 +261,7 @@ int   bdb_create_queue(char *queue_name);
 int   bdb_delete_queue(char *queue_name);
 int   bdb_set(char *key, item *it);
 item* bdb_get(char *key);
+void print_queue_stats(char *temp, int len_limit);
 
 void start_checkpoint_thread(void);
 void start_mempool_trickle_thread(void);

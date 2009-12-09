@@ -32,11 +32,12 @@
 #include <assert.h>
 
 #define CHECK_DB_RET(ret) \
-  if (0!=ret) \
-      goto dberr
+  if (0!=ret) goto dberr
 
+static unsigned int hashfromkey(void *k);
+static int equalkeys(void *k1, void *k2);
 static void open_exsited_queue_db(DB_TXN *txn, char *qn, qstats_t *qs);
-static void dump_qstats(void);
+static void dump_qstats_to_db(void);
 static void *bdb_checkpoint_thread __P((void *));
 static void *bdb_mempool_trickle_thread __P((void *));
 static void *bdb_deadlock_detect_thread __P((void *));
@@ -44,18 +45,11 @@ static void *bdb_qstats_dump_thread __P((void *));
 static void bdb_err_callback(const DB_ENV *dbenv, const char *errpfx, const char *msg);
 static void bdb_msg_callback(const DB_ENV *dbenv, const char *msg);
 
-static unsigned int
-hashfromkey(void *ky)
-{
-    char *k = (char *)ky;
-    unsigned int hash;
-    hash = murmurhash2(k, strlen(k), 0);
-    return hash;
+static unsigned int hashfromkey(void *k) {
+    return murmurhash2(k, strlen(k), 0);
 }
 
-static int
-equalkeys(void *k1, void *k2)
-{
+static int equalkeys(void *k1, void *k2) {
     return (0 == strcmp(k1,k2));
 }
 
@@ -87,6 +81,7 @@ void bdb_settings_init(void){
     
     bdb_settings.page_size = 4096;  /* default is 4K */
     bdb_settings.txn_nosync = 0; /* default DB_TXN_NOSYNC is off */
+    bdb_settings.log_auto_remove = 0; 
     bdb_settings.deadlock_detect_val = 100 * 1000; /* default is 100 millisecond */
     bdb_settings.checkpoint_val = 60 * 5; /* seconds */
     bdb_settings.mempool_trickle_val = 30; /* seconds */
@@ -121,6 +116,10 @@ void bdb_env_init(void){
     if (bdb_settings.txn_nosync){
         envp->set_flags(envp, DB_TXN_NOSYNC, 1);
     }
+    /* Auto remove log */
+    if (bdb_settings.log_auto_remove) {
+        envp->log_set_config(envp, DB_LOG_AUTO_REMOVE, 1);        
+    }
 
     /* set locking */
     envp->set_lk_max_lockers(envp, 40000);
@@ -147,7 +146,6 @@ void bdb_env_init(void){
     }
 }
 
-/* for atexit cleanup */
 void bdb_env_close(void){
     int ret = 0;
     if (envp != NULL) {
@@ -166,16 +164,17 @@ void bdb_qlist_db_open(void){
     DBC *cursorp = NULL;
     DB_TXN *txnp = NULL;
         
-    ret = envp->txn_begin(envp, NULL, &txnp, 0);
-    CHECK_DB_RET(ret);
+    /* Create queue.list db handle */
     ret = db_create(&qlist_dbp, envp, 0);
+    CHECK_DB_RET(ret);
+
+    /* Open and Iterate */
+    ret = envp->txn_begin(envp, NULL, &txnp, 0);
     CHECK_DB_RET(ret);
     ret = qlist_dbp->open(qlist_dbp, txnp, "queue.list", NULL, DB_BTREE, DB_CREATE, 0664);
     CHECK_DB_RET(ret);
     ret = qlist_dbp->cursor(qlist_dbp, txnp, &cursorp, 0); 
     CHECK_DB_RET(ret);
-    
-    /* Initialize our DBTs. */
     DBT dbkey, dbdata;
     char qname[512];
     qstats_t qs;
@@ -242,9 +241,8 @@ dberr:
     exit(EXIT_FAILURE);
 }
 
-/* for atexit cleanup */
 void bdb_qlist_db_close(void){
-    dump_qstats();
+    dump_qstats_to_db();
     
     struct hashtable_itr *itr = NULL;
     queue_t *q;
@@ -258,8 +256,10 @@ void bdb_qlist_db_close(void){
             pthread_mutex_destroy(&(q->lock));
         } while (hashtable_iterator_advance(itr));
     }
-    free(itr);    
-    qlist_dbp->close(qlist_dbp, 0);
+    free(itr);
+    if (qlist_dbp != NULL) {
+        qlist_dbp->close(qlist_dbp, 0);        
+    }
     fprintf(stderr, "qlist_dbp->close: OK\n");
 }
 
@@ -291,18 +291,18 @@ int bdb_create_queue(char *queue_name) {
     CHECK_DB_RET(ret);
 
     ret = envp->txn_begin(envp, NULL, &txnp, 0);
+    CHECK_DB_RET(ret);
     ret = q->dbp->open(q->dbp, txnp, queue_name, NULL, DB_QUEUE, DB_CREATE, 0664); 
     CHECK_DB_RET(ret);
     
     DBT dbkey,dbdata;
     qstats_t qs;
-    memset(&qs, 0, sizeof(qs));
     BDB_CLEANUP_DBT();
+    memset(&qs, 0, sizeof(qs));
     dbkey.data = (void *)queue_name;
     dbkey.size = strlen(queue_name)+1;
     dbdata.data = (void *)&qs;
     dbdata.size = sizeof(qstats_t);
-    CHECK_DB_RET(ret);
     ret = qlist_dbp->put(qlist_dbp, txnp, &dbkey, &dbdata, 0);
     CHECK_DB_RET(ret);
     ret = txnp->commit(txnp, 0);
@@ -354,9 +354,7 @@ dberr:
     return -1;
 }
 
-static void dump_qstats(void) {
-    struct hashtable_itr *itr = NULL;
-
+static void dump_qstats_to_db(void) {
     /* qstats hashtable */
     char *kk;
     qstats_t *s;
@@ -368,6 +366,8 @@ static void dump_qstats(void) {
     pthread_rwlock_rdlock(&qlist_ht_lock);
     char *k;
     queue_t *q;
+    int result;
+    struct hashtable_itr *itr = NULL;
     itr = hashtable_iterator(qlist_htp);
     assert(itr != NULL);
     if (hashtable_count(qlist_htp) > 0)
@@ -390,7 +390,8 @@ static void dump_qstats(void) {
             assert(s);
             s->set_hits = q->old_set_hits;
             s->get_hits = q->old_get_hits;
-            hashtable_insert(qstats_htp, (void *)kk, (void *)s);
+            result = hashtable_insert(qstats_htp, (void *)kk, (void *)s);
+            assert(result != 0);
         } while (hashtable_iterator_advance(itr));
     }
     free(itr);
@@ -410,9 +411,10 @@ static void dump_qstats(void) {
         do {
             kk = hashtable_iterator_key(itr);
             s = hashtable_iterator_value(itr);
-            dbkey.data = kk;
+            BDB_CLEANUP_DBT();
+            dbkey.data = (void *)kk;
             dbkey.size = strlen(kk) + 1;
-            dbdata.data = s;
+            dbdata.data = (void *)s;
             dbdata.size = sizeof(qstats_t);
             ret = qlist_dbp->put(qlist_dbp, txnp, &dbkey, &dbdata, 0);
             CHECK_DB_RET(ret);
@@ -429,12 +431,53 @@ static void dump_qstats(void) {
     qstats_htp = NULL;
     return;
 dberr:
+    if(itr != NULL) {
+        free(itr);
+    }
+    if (qstats_htp != NULL) {
+        hashtable_destroy(qstats_htp, 1);
+    }
     if (txnp != NULL){
         txnp->abort(txnp);
     }
     if (settings.verbose > 1) {
-        fprintf(stderr, "dump_qstats: %s\n", db_strerror(ret));
+        fprintf(stderr, "dump_qstats_to_db: %s\n", db_strerror(ret));
     }
+}
+
+void print_queue_stats(char *temp, int len_limit) {
+    char *pos = temp;
+    int remains = len_limit - 3;
+    int res;
+    int64_t set_hits,get_hits;
+    pthread_rwlock_rdlock(&qlist_ht_lock);
+    char *k;
+    queue_t *q;
+    struct hashtable_itr *itr = NULL;
+    itr = hashtable_iterator(qlist_htp);
+    assert(itr != NULL);
+    if (hashtable_count(qlist_htp) > 0)
+    {
+        do {
+            k = hashtable_iterator_key(itr);
+            q = hashtable_iterator_value(itr);
+            pthread_mutex_lock(&(q->lock));
+            set_hits = q->set_hits;
+            get_hits = q->get_hits;
+            pthread_mutex_unlock(&(q->lock));
+            if (remains > strlen(k) + 50) {
+                res = sprintf(pos, "STAT %s %lld/%lld\r\n", k, set_hits, get_hits);
+                remains -= res;
+                pos += res;                
+            } else {
+                break;
+            }
+        } while (hashtable_iterator_advance(itr));
+    }
+    free(itr);
+    pthread_rwlock_unlock(&qlist_ht_lock);
+    sprintf(pos, "END");
+    return;
 }
 
 
@@ -475,6 +518,9 @@ item *bdb_get(char *key){
         CHECK_DB_RET(ret);
         ret = txnp->commit(txnp, 0);
         CHECK_DB_RET(ret);
+        pthread_mutex_lock(&(q->lock));
+        (q->get_hits)++;
+        pthread_mutex_unlock(&(q->lock));
     }
     pthread_rwlock_unlock(&qlist_ht_lock);    
     return it;
@@ -526,6 +572,9 @@ int bdb_set(char *key, item *it){
         CHECK_DB_RET(ret);
         ret = txnp->commit(txnp, 0);
         CHECK_DB_RET(ret);
+        pthread_mutex_lock(&(q->lock));
+        (q->set_hits)++;
+        pthread_mutex_unlock(&(q->lock));
     }
     pthread_rwlock_unlock(&qlist_ht_lock);    
     return 0;
@@ -581,7 +630,7 @@ void start_deadlock_detect_thread(void){
         }
     }
 }
-/* TODO: */
+
 void start_qstats_dump_thread(void){
     pthread_t tid;
     if (bdb_settings.qstats_dump_val > 0){
@@ -641,7 +690,7 @@ static void *bdb_qstats_dump_thread(void *arg){
     int ret;
     dbenv = arg;
     for (;; sleep(bdb_settings.qstats_dump_val)) {
-        dump_qstats();
+        dump_qstats_to_db();
         dbenv->errx(dbenv, "qstats dump thread: a qstats is dump.");
     }
     return (NULL);

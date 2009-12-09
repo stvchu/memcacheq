@@ -803,16 +803,12 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
         return;
     }
 
-    // if (strcmp(subcommand, "queue") == 0) {
-    //     char temp[512];
-    //     int ret;
-    //     ret = print_qstats(temp, 512);
-    //     if (ret == 0)
-    //         out_string(c, temp);
-    //     else
-    //         out_string(c, "END");
-    //     return;
-    // }
+    if (strcmp(subcommand, "queue") == 0) {
+        char temp[2048];
+        print_queue_stats(temp, 2048);
+        out_string(c, temp);
+        return;
+    }
 
     out_string(c, "ERROR");
 }
@@ -1862,6 +1858,7 @@ static void usage(void) {
     
     printf("-D <num>      do deadlock detecting every <num> millisecond, 0 for disable, default is 100ms\n");
     printf("-N            enable DB_TXN_NOSYNC to gain big performance improved, default is off\n");
+    printf("-R            automatically remove log files that are no longer needed, default is off\n");
 
     return;
 }
@@ -2068,7 +2065,7 @@ int main (int argc, char **argv) {
     setbuf(stderr, NULL);
 
     /* process arguments */
-    while ((c = getopt(argc, argv, "a:U:p:s:c:hivl:dru:P:t:f:H:m:A:L:C:T:S:e:D:E:B:NMSR:O:")) != -1) {
+    while ((c = getopt(argc, argv, "a:U:p:s:c:hivl:dru:P:t:H:m:A:L:C:T:S:e:D:E:B:NR")) != -1) {
         switch (c) {
         case 'a':
             /* access for unix domain socket, as octal mask (like chmod)*/
@@ -2161,6 +2158,9 @@ int main (int argc, char **argv) {
             break;
         case 'N':
             bdb_settings.txn_nosync = 1;
+            break;
+        case 'R':
+            bdb_settings.log_auto_remove = 1;
             break;
 
         default:
