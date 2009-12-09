@@ -341,6 +341,12 @@ int bdb_delete_queue(char *queue_name){
     CHECK_DB_RET(ret);
     ret = envp->dbremove(envp, txnp, queue_name, NULL, 0);
     CHECK_DB_RET(ret);
+    DBT dbkey;
+    memset(&dbkey, 0, sizeof(dbkey));
+    dbkey.data = (void *)queue_name;
+    dbkey.size = strlen(queue_name) + 1;
+    ret = qlist_dbp->del(qlist_dbp, txnp, &dbkey, 0);
+    CHECK_DB_RET(ret);
     ret = txnp->commit(txnp, 0);
     CHECK_DB_RET(ret);
     pthread_rwlock_unlock(&qlist_ht_lock);
