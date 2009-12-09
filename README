@@ -83,10 +83,10 @@ use 'stats queue' to see your current queues::
   Connected to localhost.
   Escape character is '^]'.
   stats queue
-  STAT test1
-  STAT test2
-  STAT test3
-  STAT test4
+  STAT test1 12231/12
+  STAT test2 23/23
+  STAT test3 1212/12
+  STAT test4 1/1
   END
   
 delete a queue::
@@ -98,23 +98,6 @@ delete a queue::
   delete test1
   DELETED
   
-
-'db_stat' a queue to see how many records now in::
-
-  $ cd <your queue dir>
-  $ /usr/local/BerkeleyDB.4.7/bin/db_stat -d test1 
-  Mon Sep 22 20:25:56 2008	Local time
-  42253   Queue magic number
-  4       Queue version number
-  1024    Fixed-length record size
-  0x20    Fixed-length record pad
-  4096    Underlying database page size
-  131072  Underlying database extent size
-  100000  Number of records in the database
-  33334   Number of database pages
-  2048    Number of bytes free in database pages (99% ff)
-  1       First undeleted record
-  100001  Next available record number
   
 Feedback
 =========
@@ -126,4 +109,4 @@ MemcacheDB mailing list now hosts on Google Group: http://groups.google.com/grou
 
 Please report your bugs and issues to the Maillist.
 
-Last updated by Steve Chu<http://stvchu.org>: 09/22/2008
+Last updated by Steve Chu<http://stvchu.org>: 12/09/2009
