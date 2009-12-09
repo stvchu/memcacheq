@@ -29,6 +29,8 @@
 #include <event.h>
 #include <netdb.h>
 #include <db.h>
+#include "hashtable.h"
+#include "hash.h"
 
 #define DATA_BUFFER_SIZE 2048
 #define UDP_READ_BUFFER_SIZE 65536
@@ -53,8 +55,6 @@
 #define ITEM_LIST_HIGHWAT 400
 #define IOV_LIST_HIGHWAT 600
 #define MSG_LIST_HIGHWAT 100
-
-#define DBHOME "/data1/memcacheq"
 
 /* Get a consistent bool type */
 #if HAVE_STDBOOL_H
@@ -103,31 +103,6 @@ struct settings {
 extern struct stats stats;
 extern struct settings settings;
 
-struct bdb_version {
-    int majver;
-    int minver;
-    int patch;
-};
-
-struct bdb_settings {
-    char *env_home;    /* db env home dir path */
-    u_int32_t cache_size; /* cache size */
-    u_int32_t txn_lg_bsize; /* transaction log buffer size */
-    u_int32_t page_size;    /* underlying database pagesize*/
-    int txn_nosync;    /* DB_TXN_NOSYNC flag, if 1 will lose transaction's durability for performance */
-    int dldetect_val; /* do deadlock detect every *db_lock_detect_val* millisecond, 0 for disable */
-    int chkpoint_val;  /* do checkpoint every *db_chkpoint_val* second, 0 for disable */
-    int memp_trickle_val;  /* do memp_trickle every *memp_trickle_val* second, 0 for disable */
-    int memp_trickle_percent; /* percent of the pages in the cache that should be clean.*/
-    u_int32_t db_flags; /* database open flags */
-    u_int32_t env_flags; /* env open flags */
-    u_int32_t re_len;
-    u_int32_t q_extentsize;
-};
-
-extern struct bdb_settings bdb_settings;
-extern struct bdb_version bdb_version;
-
 typedef struct _stritem {
     int             nbytes;     /* size of data */
     uint8_t         nsuffix;    /* length of flags-and-length string */
@@ -137,12 +112,6 @@ typedef struct _stritem {
     /* then " flags length\r\n" (no terminating null) */
     /* then data with terminating \r\n (no terminating null; it's binary!) */
 } item;
-
-typedef struct msg_queue_t {
-  int64_t length;
-  DB *dbp;
-  /*char pads[80];*/
-} msg_queue_t;
 
 #define ITEM_key(item) ((char*)&((item)->end[0]))
 
@@ -228,39 +197,75 @@ struct conn {
  * Functions
  */
 
-/* bdb management */
-void bdb_settings_init(void);
-void bdb_env_init(void);
-
-void bdb_qlist_db_open(void);
-int delete_queue_db(char *queue_name, size_t queue_name_size);
-int print_queue_db_list(char *buf, size_t buf_size);
-item *bdb_get(char *key, size_t nkey);
-int bdb_put(char *key, size_t nkey, item *it);
-
-void start_chkpoint_thread(void);
-void start_memp_trickle_thread(void);
-void start_dl_detect_thread(void);
-void bdb_db_close(void);
-void bdb_env_close(void);
-void bdb_chkpoint(void);
-
-/* ibuffer management */
+/* item buffer management */
 void item_init(void);
 item *do_item_from_freelist(void);
 int do_item_add_to_freelist(item *it);
 item *item_alloc1(char *key, const size_t nkey, const int flags, const int nbytes);
 item *item_alloc2(void);
 int item_free(item *it);
-item *item_get(char *key, size_t nkey);
-int item_put(char *key, size_t nkey, item *it);
-int item_delete(char *key, size_t nkey);
-int item_exists(char *key, size_t nkey);
 
 /* conn management */
 conn *do_conn_from_freelist();
 bool do_conn_add_to_freelist(conn *c);
 conn *conn_new(const int sfd, const int init_state, const int event_flags, const int read_buffer_size, const bool is_udp, struct event_base *base);
+
+/* bdb */
+#define DBHOME "/data1/memcacheq"
+
+#define BDB_CLEANUP_DBT() \
+    memset(&dbkey, 0, sizeof(dbkey)); \
+    memset(&dbdata, 0, sizeof(dbdata))
+
+struct bdb_settings {
+    char *env_home;
+    u_int32_t cache_size;
+    u_int32_t txn_lg_bsize;
+    u_int32_t page_size;
+    int txn_nosync;
+    int deadlock_detect_val;
+    int checkpoint_val;
+    int mempool_trickle_val;
+    int mempool_trickle_percent;
+    int qstats_dump_val;
+    u_int32_t re_len;
+    u_int32_t q_extentsize;
+};
+
+typedef struct _qstats {
+  int64_t set_hits;
+  int64_t get_hits;
+} qstats_t;
+
+typedef struct _queue {
+  DB* dbp;
+  int64_t set_hits;
+  int64_t get_hits;
+  int64_t old_set_hits;
+  int64_t old_get_hits;
+  pthread_mutex_t lock;
+} queue_t;
+
+extern struct bdb_settings bdb_settings;
+extern DB_ENV *envp;
+
+void  qlist_ht_init(void);
+void  qlist_ht_close(void);
+void  bdb_settings_init(void);
+void  bdb_env_init(void);
+void  bdb_env_close(void);
+void  bdb_qlist_db_open(void);
+void  bdb_qlist_db_close(void);
+int   bdb_create_queue(char *queue_name);
+int   bdb_delete_queue(char *queue_name);
+int   bdb_set(char *key, item *it);
+item* bdb_get(char *key);
+
+void start_checkpoint_thread(void);
+void start_mempool_trickle_thread(void);
+void start_deadlock_detect_thread(void);
+void start_qstats_dump_thread(void);
+void bdb_chkpoint(void);
 
 /*
  * In multithreaded mode, we wrap certain functions with lock management and
@@ -289,14 +294,12 @@ item *mt_item_from_freelist(void);
 int mt_item_add_to_freelist(item *it);
 void  mt_stats_lock(void);
 void  mt_stats_unlock(void);
-int   mt_store_item(item *item, int comm);
 
 # define conn_from_freelist()        mt_conn_from_freelist()
 # define conn_add_to_freelist(x)     mt_conn_add_to_freelist(x)
 # define is_listen_thread()          mt_is_listen_thread()
 # define item_from_freelist()        mt_item_from_freelist()
 # define item_add_to_freelist(x)     mt_item_add_to_freelist(x)
-# define store_item(x,y)             mt_store_item(x,y)
 
 # define STATS_LOCK()                mt_stats_lock()
 # define STATS_UNLOCK()              mt_stats_unlock()
@@ -310,7 +313,6 @@ int   mt_store_item(item *item, int comm);
 # define is_listen_thread()           1
 # define item_from_freelist()         do_item_from_freelist()
 # define item_add_to_freelist(x)      do_item_add_to_freelist(x)
-# define store_item(x,y)              do_store_item(x,y)
 # define thread_init(x,y)             0
 
 # define STATS_LOCK()                /**/
@@ -318,11 +320,4 @@ int   mt_store_item(item *item, int comm);
 
 #endif /* !USE_THREADS */
 
-
-#define BDB_CLEANUP_DBT() \
-    memset(&dbkey, 0, sizeof(dbkey)); \
-    memset(&dbdata, 0, sizeof(dbdata))
-
-extern DB_ENV *envp;
-extern DB *qlist_dbp;
 extern int daemon_quit;

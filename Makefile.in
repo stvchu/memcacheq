@@ -49,7 +49,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_memcacheq_OBJECTS = memcacheq.$(OBJEXT) item.$(OBJEXT) \
-	thread.$(OBJEXT) bdb.$(OBJEXT)
+	thread.$(OBJEXT) bdb.$(OBJEXT) hashtable.$(OBJEXT) \
+	hash.$(OBJEXT) daemon.$(OBJEXT)
 memcacheq_OBJECTS = $(am_memcacheq_OBJECTS)
 memcacheq_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -158,7 +159,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-memcacheq_SOURCES = memcacheq.c item.c memcacheq.h thread.c bdb.c
+memcacheq_SOURCES = memcacheq.c item.c memcacheq.h thread.c bdb.c hashtable.c hash.c daemon.c
 EXTRA_DIST = AUTHORS LICENSE INSTALL.html README.html
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -249,6 +250,9 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bdb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/daemon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hashtable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/item.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memcacheq.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/thread.Po@am__quote@

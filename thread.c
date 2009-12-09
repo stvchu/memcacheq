@@ -330,7 +330,8 @@ static void *worker_libevent(void *arg) {
     pthread_cond_signal(&init_cond);
     pthread_mutex_unlock(&init_lock);
 
-    return (void*) event_base_loop(me->base, 0);
+    event_base_loop(me->base, 0);
+    return NULL;
 }
 
 
