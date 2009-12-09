@@ -4705,9 +4705,9 @@ if test "$ac_res" != no; then
 
 fi
 
-{ echo "$as_me:$LINENO: checking for library containing m" >&5
-echo $ECHO_N "checking for library containing m... $ECHO_C" >&6; }
-if test "${ac_cv_search_m+set}" = set; then
+{ echo "$as_me:$LINENO: checking for library containing ceilf" >&5
+echo $ECHO_N "checking for library containing ceilf... $ECHO_C" >&6; }
+if test "${ac_cv_search_ceilf+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_func_search_save_LIBS=$LIBS
@@ -4724,16 +4724,16 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char m ();
+char ceilf ();
 int
 main ()
 {
-return m ();
+return ceilf ();
   ;
   return 0;
 }
 _ACEOF
-for ac_lib in '' ceil; do
+for ac_lib in '' m; do
   if test -z "$ac_lib"; then
     ac_res="none required"
   else
@@ -4758,7 +4758,7 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_search_m=$ac_res
+  ac_cv_search_ceilf=$ac_res
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
@@ -4768,21 +4768,21 @@ fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext
-  if test "${ac_cv_search_m+set}" = set; then
+  if test "${ac_cv_search_ceilf+set}" = set; then
   break
 fi
 done
-if test "${ac_cv_search_m+set}" = set; then
+if test "${ac_cv_search_ceilf+set}" = set; then
   :
 else
-  ac_cv_search_m=no
+  ac_cv_search_ceilf=no
 fi
 rm conftest.$ac_ext
 LIBS=$ac_func_search_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_search_m" >&5
-echo "${ECHO_T}$ac_cv_search_m" >&6; }
-ac_res=$ac_cv_search_m
+{ echo "$as_me:$LINENO: result: $ac_cv_search_ceilf" >&5
+echo "${ECHO_T}$ac_cv_search_ceilf" >&6; }
+ac_res=$ac_cv_search_ceilf
 if test "$ac_res" != no; then
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
