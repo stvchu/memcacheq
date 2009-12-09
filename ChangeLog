@@ -1,7 +1,11 @@
+2008-11-25 Steve Chu <stvchu@gmail.com>
+* version 0.2.0 is released.
+
 2009-12-09 Steve Chu <stvchu@gmail.com>
-* the multiple queue map code is rewritten, now we support instant queue stats. telnet and type 'stats queue' command for detail.
+* the multiple queue map code is rewritten, now we support instant per-queue statistics. telnet and type 'stats queue' command for detail.
 * tools are added for 'stats queue', check 'tools/'.
 * a new option(-R) is added to remove useless transaction log automatically.
+* some code clearup
 
 2008-11-25 Steve Chu <stvchu@gmail.com>
 * version 0.1.1 is released.
