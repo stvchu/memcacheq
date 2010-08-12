@@ -264,8 +264,6 @@ void bdb_qlist_db_close(void){
 }
 
 int bdb_create_queue(char *queue_name) {
-    pthread_rwlock_wrlock(&qlist_ht_lock);
-
     char *k = strdup(queue_name);
     assert(k != NULL);
     queue_t *q = (queue_t *)calloc(1, sizeof(queue_t));
@@ -309,14 +307,12 @@ int bdb_create_queue(char *queue_name) {
     CHECK_DB_RET(ret);
     int result = hashtable_insert(qlist_htp, (void *)k, (void *)q);
     assert(result != 0);
-    pthread_rwlock_unlock(&qlist_ht_lock);
     return 0;
 dberr:
     if (txnp != NULL){
         txnp->abort(txnp);
     }
     fprintf(stderr, "bdb_create_queue: %s %s\n", queue_name, db_strerror(ret));
-    pthread_rwlock_unlock(&qlist_ht_lock);
     return -1;
 }
 
@@ -554,12 +550,13 @@ int bdb_set(char *key, item *it){
 
     if (NULL == q) {
         pthread_rwlock_unlock(&qlist_ht_lock);
+        /* switch to write lock */
+        pthread_rwlock_wrlock(&qlist_ht_lock);
         ret = bdb_create_queue(key);
         if (0 != ret){
             return -1;
         }
         /* search again */
-        pthread_rwlock_rdlock(&qlist_ht_lock);
         q = (queue_t *)hashtable_search(qlist_htp, (void *)key);        
     }
     

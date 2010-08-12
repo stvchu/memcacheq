@@ -1,4 +1,7 @@
-2008-11-25 Steve Chu <stvchu@gmail.com>
+2010-08-12 Steve Chu <stvchu@gmail.com>
+* fix a lock bug when creating queue
+
+2009-12-09 Steve Chu <stvchu@gmail.com>
 * version 0.2.0 is released.
 
 2009-12-09 Steve Chu <stvchu@gmail.com>
