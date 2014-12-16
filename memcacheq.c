@@ -2278,24 +2278,18 @@ int main (int argc, char **argv) {
 
     /* create the listening socket, bind it, and init */
     if (settings.socketpath == NULL) {
-        int udp_port;
-
         if (server_socket(settings.port, 0)) {
             fprintf(stderr, "failed to listen\n");
             exit(EXIT_FAILURE);
         }
-        /*
-         * initialization order: first create the listening sockets
-         * (may need root on low ports), then drop root if needed,
-         * then daemonise if needed, then init libevent (in some cases
-         * descriptors created by libevent wouldn't survive forking).
-         */
-        udp_port = settings.udpport ? settings.udpport : settings.port;
 
         /* create the UDP listening socket and bind it */
-        if (server_socket(udp_port, 1)) {
-            fprintf(stderr, "failed to listen on UDP port %d\n", settings.udpport);
-            exit(EXIT_FAILURE);
+        /* diable udp by default, udp code is buggy, use as your risk */
+        if (settings.udpport != 0) {
+            if (server_socket(settings.udpport, 1)) {
+                fprintf(stderr, "failed to listen on UDP port %d\n", settings.udpport);
+                exit(EXIT_FAILURE);
+            }            
         }
     }
     
