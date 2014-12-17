@@ -1,3 +1,9 @@
+2014-12-17 Steve Chu <stvchu@gmail.com>
+* version 0.2.1 is released.
+
+2014-12-16 Steve Chu <stvchu@gmail.com>
+* disable udp by default, udp code is buggy and for reliable message, better not to use it :p
+
 2010-08-12 Steve Chu <stvchu@gmail.com>
 * fix a lock bug when creating queue
 
